@@ -1,67 +1,74 @@
-Repository: Todo App (Go) — Hexagonal/Clean architecture
+# Copilot instructions para este repositório — Transactions Service (Go)
 
-Build, test, and run
+Este arquivo orienta sessões futuras do Copilot/CLI a trabalhar eficientemente neste projeto.
 
-- Makefile targets (top-level):
-  - make build    # builds binary to bin/todoapp
-  - make test     # runs go test ./...
-  - make run      # runs the app via go run ./cmd/app
-- Single-test examples:
-  - go test ./internal/adapters/http -run TestIntegration_TodosEndpoints -v
-  - go test ./internal/adapters/http -run TestIntegration_TodosEndpoints
-  - go test ./internal/adapters/http -run TestName
-- Docker / compose:
-  - ./scripts/run.sh        # runs docker-compose up --build
-  - docker-compose up --build
+1) Comandos úteis (build / test / run)
+- Build (binário):
+  make build
+  -> produz bin/transactions (go build -o bin/transactions ./cmd/app)
+- Rodar (local):
+  make run
+  -> executa `go run ./cmd/app` (requere DB_CONNECTION_STRING e HTTP_PORT)
+- Rodar em dev (conexão local ao Postgres):
+  make run-dev
+  -> exemplo do Makefile: `DB_CONNECTION_STRING="postgres://postgres:postgres@localhost:5432/transactions_db?sslmode=disable" HTTP_PORT=5000 go run ./cmd/app`
+- Rodar com Docker Compose (recomendado para ambiente local):
+  make run-docker
+  ./scripts/run.sh
+  docker-compose up --build
 
-Environment (for local run)
+- Testes (toda a suíte):
+  make test
+  -> executa `go test ./internal/tests/../... -v` (Makefile configura testes em internal/...)
 
-- The binary expects DB connection via env vars (see cmd/app/main.go):
-  DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
-- docker-compose.yaml provides a Postgres service and mounts deploy/postgres/init.sql to initialize the DB.
+- Executar um único teste (exemplos):
+  go test ./internal/core/services -run TestCreateAccount -v
+  go test ./internal/tests/integration/handlers/http -run TestCreateAccount -v
+  go test ./internal/adapters/handlers -run TestName -v
 
-High-level architecture (big picture)
+Observação: os testes de integração usam testcontainers (Postgres) — ver internal/tests/integration/utils/testcontainers.go.
 
-- Hexagonal / Clean structure under /internal:
-  - internal/domain    -> core entities (Todo)
-  - internal/repository -> port interfaces (TodoRepository)
-  - internal/usecase   -> business logic / services (TodoService)
-  - internal/infra     -> infrastructure adapters (postgres, inmemory)
-  - internal/adapters  -> delivery adapters (http server)
-- cmd/app is the application bootstrap: it reads env, creates DB connection, wires infra -> usecase -> adapters, starts HTTP server.
-- Tests: adapters/http/server_test.go shows an integration-style test using the inmemory repo and httptest.Server.
+2) Visão geral da arquitetura (Hexagonal / Ports & Adapters)
+- internal/core
+  - domain: entidades e erros de domínio (Account, Transaction, validações)
+  - ports: interfaces (AccountService, AccountRepository, TransactionService, TransactionRepository)
+  - services: implementação dos casos de uso (NewAccountService, NewTransactionService) que dependem apenas das portas
+- internal/adapters
+  - handlers: adaptadores de entrega HTTP (handlers.HttpHandler). Rotas são registradas em cmd/app via ServeMux.
+  - db/postgres: adaptadores de persistência que implementam as interfaces de repositório (NewAccountRepository, NewTransactionRepository)
+- cmd/app
+  - ponto de entrada: lê variáveis de ambiente (DB_CONNECTION_STRING obrigatório, HTTP_PORT), instancia repositórios e serviços e registra rotas
+- deploy/postgres/init.sql
+  - script de inicialização do banco (montado pelo docker-compose e usado pelos testes/integration container)
 
-Key conventions and patterns
+3) Convenções / padrões específicos do projeto
+- Repositórios Postgres: construtores expostos `NewXRepository(connStr string)` abrem sql.DB e retornam um objeto que implementa a porta correspondente. Os construtores atualmente `panic` em erro de sql.Open — manter cuidado ao refatorar.
+- Serviços: usar fábricas `NewAccountService` e `NewTransactionService` que retornam as interfaces em internal/core/ports; injeção de dependências por construtor é padrão.
+- Erros de domínio: use os erros exportados em internal/core/domain (ex.: ErrAccountNotFound, ErrInvalidAccountID, ErrAccountAlreadyExists). Handlers fazem o mapeamento para códigos HTTP.
+- Tratamento de unicidade: AccountService detecta erro de banco procurando a substring `"unique constraint"` no erro retornado para mapear para ErrAccountAlreadyExists. Alterações no driver/DB podem quebrar essa verificação.
+- Registro de rotas HTTP: handlers.RegisterRoutes registra entradas no `http.ServeMux` usando strings no formato "<METHOD> <path>" (ex.: "GET /accounts/{id}"). Seguir este padrão ao adicionar rotas.
+- Testes de integração: usar `internal/tests/integration/utils.SetupPostgresContainer` (testcontainers) que monta deploy/postgres/init.sql. Reaproveitar esse helper para isolar dependências.
+- SQL init: mantenha deploy/postgres/init.sql consistente com queries em adaptadores (nomes de colunas, tipos e operation types iniciais).
 
-- Ports & Adapters:
-  - Define repository interfaces in internal/repository. Implement adapters in internal/infra/*.
-  - Usecase constructors accept repository interfaces (dependency injection by constructor).
-- Naming:
-  - "Repo"/"Repository" types live in infra/inmemory or infra/postgres and provide NewTodoRepository constructors.
-  - Usecase service is named TodoService and exposes Create and List methods.
-- Tests:
-  - Integration-like tests live next to adapters (see internal/adapters/http/server_test.go) and use inmemory repo when possible.
-- Database migration/init:
-  - deploy/postgres/init.sql is mounted into the Postgres container (docker-compose).
+4) Padrões de implementação comuns
+- Nomeclatura: tipos de repositório usam sufixo Repository (AccountRepository, TransactionRepository).
+- Serviços expõem apenas a interface definida em ports — retornar a interface facilita mocking nos testes.
+- Ao abrir conexões DB em adaptadores, sempre use conn, defer conn.Close() em operações que usam `db.Conn(ctx)`.
+- Ao adicionar validações de domínio, colocar regras em internal/core/domain para que serviços e adaptadores compartilhem.
 
-Existing automation & CI hooks
+5) Testes e ambiente local
+- go.mod especifica `go 1.25.0` — usar essa versão para builds e CI.
+- Testes de integração iniciam containers via testcontainers; tempo de startup pode variar. Ajuste timeouts em utils se necessário.
+- Para executar testes de integração isolados, use o pacote de testes em internal/tests/integration/handlers/http e seus helpers.
 
-- No lint target or CI config detected in the repo root. Use make test / go test for verification.
+6) Arquivos relevantes para automações e CI
+- docker-compose.yaml: monta deploy/postgres/init.sql no container Postgres e define DB_CONNECTION_STRING de exemplo.
+- scripts/run.sh: wrapper para docker-compose up --build.
+- Makefile: targets build / test / run / run-dev / run-docker.
 
-Other assistant / AI configs found
+7) Sugestões ao criar PRs que alteram infra/domínio
+- Mudanças em schemas SQL devem atualizar deploy/postgres/init.sql e testes de integração.
+- Alterações em ports/interfaces exigem atualização coordenada de adaptadores e serviços e execução de `go test ./...`.
 
-- No CLAUDE.md, .cursorrules, AGENTS.md, CONVENTIONS.md, .windsurfrules, or existing .github/copilot-instructions.md were found.
-
-Notes for future Copilot sessions
-
-- Focus on the dependency flow: cmd -> infra (DB) -> usecase -> adapters (HTTP).
-- When adding new persistence, add a new adapter under internal/infra and ensure it implements the internal/repository interface.
-- For new endpoints, add delivery code under internal/adapters/* and test using inmemory.NewTodoRepository to avoid DB dependencies.
-
-MCP servers
-
-Would you like help configuring any MCP servers for this project (examples: Postgres test server, Playwright for web UI tests)?
-
-Summary
-
-Created .github/copilot-instructions.md with build/test commands, architecture overview, and repository-specific conventions. Want any adjustments or extra coverage (more test examples, CI/lint suggestions, or script docs)?
+---
+Resumo: este documento cobre os comandos de build/test/run, a arquitetura hexagonal, e convenções específicas (construtores NewXRepository, mapeamento de erros, formato de rotas, uso de testcontainers).
