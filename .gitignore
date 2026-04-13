@@ -1,0 +1,38 @@
+# Binaries
+/bin/
+/bin
+/bin/*
+
+# Build outputs
+/bin
+/bin/*
+
+# Vendor
+/vendor/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Env
+.env
+
+# Logs
+*.log
+
+# Test output
+coverage.out
+
+# Docker
+docker-compose.override.yml
+
+# Generated
+*.exe
+*.exe~
+*.out
+
+# Misc
+/tmp
