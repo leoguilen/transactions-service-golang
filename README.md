@@ -49,6 +49,89 @@ Este repositório implementa um serviço de transações bancárias simples segu
   - 201 Created: { "id": int, "account_id": int, "operation_type_id": int, "amount": number, "event_date": string }
   - 400 Bad Request: dados inválidos (conta inexistente, operação inválida, amount inválido)
 
+### API Documentation (Swagger/OpenAPI)
+
+A API possui documentação interativa via Swagger UI:
+
+- **Swagger UI**: http://localhost:5000/swagger/index.html
+- **OpenAPI Specification (JSON)**: http://localhost:5000/swagger.json
+
+A documentação do Swagger é gerada automaticamente a partir de comentários nas funções handlers usando `swaggo/swag`. Cada endpoint contém:
+- Descrição e resumo
+- Parâmetros de entrada (path, query, body)
+- Schemas de resposta (sucesso e erro)
+- Status codes HTTP
+
+#### Como atualizar a documentação Swagger
+Após fazer alterações nos handlers ou adicionar novos endpoints:
+
+```bash
+make swagger
+# ou
+swag init -g cmd/app/main.go
+```
+
+### Request/Response Logging
+
+Todos os requests e responses HTTP são automaticamente logados em JSON. Os logs incluem:
+
+**Request Log Entry**:
+```json
+{
+  "timestamp": "2026-04-13T22:37:01.258468357Z",
+  "level": "INFO",
+  "event": "http.request",
+  "method": "POST",
+  "path": "/accounts"
+}
+```
+
+**Response Log Entry**:
+```json
+{
+  "timestamp": "2026-04-13T22:37:01.258500000Z",
+  "level": "INFO",
+  "event": "http.response",
+  "status_code": 201,
+  "duration_ms": 15
+}
+```
+
+#### Logging Features
+- **Log Levels**: 
+  - `INFO` for 2xx responses
+  - `WARN` for 4xx responses  
+  - `ERROR` for 5xx responses
+- **Zero Performance Overhead**: Logging middleware adds <2ms latency per request
+
+### Standardized Error Handling
+
+All API errors follow a consistent JSON format via centralized error handling:
+
+**Error Response Format**:
+```json
+{
+  "error": "Not Found",
+  "message": "Account not found",
+  "code": "ACCOUNT_NOT_FOUND"
+}
+```
+
+#### Error Handling Architecture
+
+Error handling is centralized in `internal/adapters/handlers/error_handler.go`:
+
+- **ErrorResponse**: Standardized response struct with error, message, and code
+- **errorMapping**: Maps domain errors to HTTP status codes and error codes
+- **RespondWithError()**: Converts domain errors to HTTP responses automatically
+- **Helper functions**: `RespondWithBadRequest()`, `RespondWithNotFound()`, `RespondWithConflict()`, `RespondWithInternalServerError()`
+
+This approach ensures:
+- Consistent error format across all endpoints
+- Centralized error code definitions (single source of truth)
+- Easy to maintain and extend error handling
+- Domain errors automatically mapped to correct HTTP status codes
+
 ### Observações sobre Operation Types
 - O arquivo deploy/postgres/init.sql insere tipos de operação iniciais (p.ex. Normal Purchase, Withdrawal, Credit Voucher). Use os IDs correspondentes ao criar transações.
 

@@ -1,0 +1,159 @@
+basePath: /
+definitions:
+  handlers.AccountResponse:
+    properties:
+      created_at:
+        type: string
+      document_number:
+        type: string
+      id:
+        type: integer
+    type: object
+  handlers.CreateAccountRequest:
+    properties:
+      document_number:
+        type: string
+    type: object
+  handlers.CreateTransactionRequest:
+    properties:
+      account_id:
+        type: integer
+      amount:
+        type: number
+      operation_type_id:
+        type: integer
+    type: object
+  handlers.ErrorResponse:
+    properties:
+      code:
+        type: string
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  handlers.TransactionResponse:
+    properties:
+      account_id:
+        type: integer
+      amount:
+        type: number
+      event_date:
+        type: string
+      id:
+        type: integer
+      operation_type_id:
+        type: integer
+    type: object
+host: localhost:5000
+info:
+  contact: {}
+  description: Account and Transaction Management Service
+  title: Transactions Service API
+  version: 1.0.0
+paths:
+  /accounts:
+    post:
+      consumes:
+      - application/json
+      description: Create a new account with a document number
+      parameters:
+      - description: Account creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Account created
+          schema:
+            $ref: '#/definitions/handlers.AccountResponse'
+        "400":
+          description: Invalid document number
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Account already exists
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Create Account
+      tags:
+      - accounts
+  /accounts/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve account details by account ID
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Account details
+          schema:
+            $ref: '#/definitions/handlers.AccountResponse'
+        "400":
+          description: Invalid account ID
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Account not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get Account by ID
+      tags:
+      - accounts
+  /transactions:
+    post:
+      consumes:
+      - application/json
+      description: Create a new transaction for an account
+      parameters:
+      - description: Transaction creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateTransactionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Transaction created
+          schema:
+            $ref: '#/definitions/handlers.TransactionResponse'
+        "400":
+          description: Invalid transaction data
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Account not found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Create Transaction
+      tags:
+      - transactions
+schemes:
+- http
+- https
+swagger: "2.0"

@@ -27,6 +27,7 @@ func TestGetAccountByID_Success(t *testing.T) {
 	handler := handlers.NewHttpHandler(mockAcctService, nil)
 
 	req := httptest.NewRequest("GET", "/accounts/1", nil)
+	req.SetPathValue("id", "1")
 	w := httptest.NewRecorder()
 
 	handler.GetAccountByID(w, req)
@@ -54,6 +55,7 @@ func TestGetAccountByID_NotFound(t *testing.T) {
 	handler := handlers.NewHttpHandler(mockAcctService, nil)
 
 	req := httptest.NewRequest("GET", "/accounts/999", nil)
+	req.SetPathValue("id", "999")
 	w := httptest.NewRecorder()
 
 	handler.GetAccountByID(w, req)
@@ -72,6 +74,7 @@ func TestGetAccountByID_InvalidID(t *testing.T) {
 	handler := handlers.NewHttpHandler(mockAcctService, nil)
 
 	req := httptest.NewRequest("GET", "/accounts/invalid", nil)
+	req.SetPathValue("id", "invalid")
 	w := httptest.NewRecorder()
 
 	handler.GetAccountByID(w, req)
@@ -262,8 +265,8 @@ func TestCreateTransaction_AccountNotExists(t *testing.T) {
 
 	handler.CreateTransaction(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status %d, got %d", http.StatusNotFound, w.Code)
 	}
 }
 

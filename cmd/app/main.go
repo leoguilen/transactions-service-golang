@@ -10,6 +10,13 @@ import (
 	"github.com/leoguilen/transactions/internal/core/services"
 )
 
+// @title Transactions Service API
+// @version 1.0.0
+// @description Account and Transaction Management Service
+// @host localhost:5000
+// @BasePath /
+// @schemes http https
+
 func init() {
 	if _, exists := os.LookupEnv("DB_CONNECTION_STRING"); !exists {
 		log.Fatal("DB_CONNECTION_STRING environment variable is required")
@@ -30,9 +37,16 @@ func main() {
 	mux := http.NewServeMux()
 	httpHandler.RegisterRoutes(mux)
 
-	addr := ":" + os.Getenv("HTTP_PORT")
+	loggedMux := handlers.LoggingMiddleware(mux)
+
+	port := os.Getenv("HTTP_PORT")
+	if port == "" {
+		port = "5000"
+	}
+	addr := ":" + port
+
 	log.Printf("Starting HTTP server on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, loggedMux); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }

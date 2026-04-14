@@ -1,4 +1,4 @@
-.PHONY: build test run
+.PHONY: build test run run-dev run-docker swagger clean
 
 build:
 	go build -o bin/transactions ./cmd/app
@@ -15,3 +15,9 @@ run-dev:
 run-docker:
 	chmod +x ./scripts/run.sh
 	./scripts/run.sh
+
+swagger:
+	swag init -g cmd/app/main.go
+
+clean:
+	rm -rf bin/ docs/
