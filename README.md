@@ -1,79 +1,79 @@
 ## Transactions Service (Go)
 
-Este repositório implementa um serviço de transações bancárias simples seguindo a Arquitetura Hexagonal (Ports & Adapters / Clean Architecture). O objetivo é demonstrar separação de responsabilidades entre domínio, portas (interfaces), adaptadores de infraestrutura (Postgres) e adaptadores de entrega (HTTP).
+This repository implements a simple banking transactions service following Hexagonal Architecture (Ports & Adapters / Clean Architecture). The goal is to demonstrate separation of concerns between domain, ports (interfaces), infrastructure adapters (Postgres), and delivery adapters (HTTP).
 
-### Tecnologias
-- Linguagem: Go
-- Banco de dados: PostgreSQL (init SQL em deploy/postgres/init.sql)
-- Testes: go test (inclui testes unitários e de integração)
-- Docker / docker-compose para ambiente local
+### Technologies
+- Language: Go
+- Database: PostgreSQL (init SQL in deploy/postgres/init.sql)
+- Testing: go test (includes unit and integration tests)
+- Docker / docker-compose for local environment
 
-### Visão geral da arquitetura (Hexagonal)
-- internal/core: domínio (entities, erros) e portas (interfaces de serviço/repositório)
-- internal/adapters: adaptadores de entrega (HTTP handlers)
-- internal/adapters/db/postgres: adaptadores de persistência (implementação dos repositórios)
-- cmd/app: bootstrap da aplicação (injeção de dependências e servidor HTTP)
+### Hexagonal Architecture Overview
+- internal/core: domain (entities, errors) and ports (service/repository interfaces)
+- internal/adapters: delivery adapters (HTTP handlers)
+- internal/adapters/db/postgres: persistence adapters (repository implementations)
+- cmd/app: application bootstrap (dependency injection and HTTP server)
 
-### Estrutura principal
-- cmd/app/main.go          -> ponto de entrada
-- internal/core/...        -> domínio, portas e serviços
-- internal/adapters/...    -> handlers HTTP e repositórios Postgres
-- deploy/postgres/init.sql -> script de criação de tabelas e dados iniciais
-- internal/tests/...       -> testes unitários e de integração
+### Main Structure
+- cmd/app/main.go          -> entry point
+- internal/core/...        -> domain, ports and services
+- internal/adapters/...    -> HTTP handlers and Postgres repositories
+- deploy/postgres/init.sql -> script for table creation and initial data
+- internal/tests/...       -> unit and integration tests
 
-### Configuração / Variáveis de ambiente
-- DB_CONNECTION_STRING: string de conexão com Postgres (obrigatório)
-- HTTP_PORT: porta HTTP (ex.: 8080)
+### Configuration / Environment Variables
+- DB_CONNECTION_STRING: Postgres connection string (required)
+- HTTP_PORT: HTTP port (e.g., 8080)
 
-### Endpoints HTTP
-#### 1. Criar conta
+### HTTP Endpoints
+#### 1. Create Account
 - POST /accounts
 - Body: { "document_number": "<string>" }
 - Responses:
   - 201 Created: { "id": int, "document_number": string, "created_at": string }
-  - 400 Bad Request: entrada inválida
-  - 409 Conflict: conta já existe
+  - 400 Bad Request: invalid input
+  - 409 Conflict: account already exists
   - Location header: /accounts/{id}
 
-#### 2. Buscar conta por ID
+#### 2. Get Account by ID
 - GET /accounts/{id}
 - Responses:
   - 200 OK: { "id": int, "document_number": string, "created_at": string }
-  - 400 Bad Request: id inválido
-  - 404 Not Found: conta não encontrada
+  - 400 Bad Request: invalid id
+  - 404 Not Found: account not found
 
-#### 3. Criar transação
+#### 3. Create Transaction
 - POST /transactions
 - Body: { "account_id": int, "operation_type_id": int, "amount": number }
 - Responses:
   - 201 Created: { "id": int, "account_id": int, "operation_type_id": int, "amount": number, "event_date": string }
-  - 400 Bad Request: dados inválidos (conta inexistente, operação inválida, amount inválido)
+  - 400 Bad Request: invalid data (non-existent account, invalid operation, invalid amount)
 
 ### API Documentation (Swagger/OpenAPI)
 
-A API possui documentação interativa via Swagger UI:
+The API has interactive documentation via Swagger UI:
 
 - **Swagger UI**: http://localhost:5000/swagger/index.html
 - **OpenAPI Specification (JSON)**: http://localhost:5000/swagger.json
 
-A documentação do Swagger é gerada automaticamente a partir de comentários nas funções handlers usando `swaggo/swag`. Cada endpoint contém:
-- Descrição e resumo
-- Parâmetros de entrada (path, query, body)
-- Schemas de resposta (sucesso e erro)
-- Status codes HTTP
+Swagger documentation is automatically generated from comments in handler functions using `swaggo/swag`. Each endpoint includes:
+- Description and summary
+- Input parameters (path, query, body)
+- Response schemas (success and error)
+- HTTP status codes
 
-#### Como atualizar a documentação Swagger
-Após fazer alterações nos handlers ou adicionar novos endpoints:
+#### How to Update Swagger Documentation
+After making changes to handlers or adding new endpoints:
 
 ```bash
 make swagger
-# ou
+# or
 swag init -g cmd/app/main.go
 ```
 
 ### Request/Response Logging
 
-Todos os requests e responses HTTP são automaticamente logados em JSON. Os logs incluem:
+All HTTP requests and responses are automatically logged in JSON. The logs include:
 
 **Request Log Entry**:
 ```json
@@ -132,42 +132,47 @@ This approach ensures:
 - Easy to maintain and extend error handling
 - Domain errors automatically mapped to correct HTTP status codes
 
-### Observações sobre Operation Types
-- O arquivo deploy/postgres/init.sql insere tipos de operação iniciais (p.ex. Normal Purchase, Withdrawal, Credit Voucher). Use os IDs correspondentes ao criar transações.
+### Notes on Operation Types
+- The deploy/postgres/init.sql file inserts initial operation types (e.g., Normal Purchase, Withdrawal, Credit Voucher). Use the corresponding IDs when creating transactions.
 
-### Como rodar localmente
-1. Com Docker Compose (recomendado):
+### How to Run Locally
+1. With Docker Compose (recommended):
+   ```bash
    ./scripts/run.sh
-   -- ou --
+   # or
    docker-compose up --build
-   (o serviço Postgres montará deploy/postgres/init.sql)
+   ```
+   (the Postgres service will mount deploy/postgres/init.sql)
 
-2. Rodar local sem Docker (Postgres já disponível):
+2. Run locally without Docker (Postgres already available):
+   ```bash
    export DB_CONNECTION_STRING="postgresql://user:pass@host:5432/dbname?sslmode=disable"
    export HTTP_PORT=8080
    go run ./cmd/app
+   ```
 
-### Exemplos com curl
-- Criar conta:
+### Examples with curl
+- Create account:
 ```bash
   curl -v -X POST http://localhost:8080/accounts \
     -H "Content-Type: application/json" \
     -d '{"document_number":"12345678900"}'
 ```
 
-- Criar transação:
+- Create transaction:
 ```bash
   curl -v -X POST http://localhost:8080/transactions \
     -H "Content-Type: application/json" \
     -d '{"account_id":1,"operation_type_id":1,"amount":100.5}'
 ```
 
-### Testes
-- Executar toda a suíte de testes:
+### Testing
+- Run full test suite:
+  ```bash
   go test ./...
+  ```
 
-- Executar testes de integração específicos (ex.: usam Testcontainers/Docker):
+- Run specific integration tests (e.g., using Testcontainers/Docker):
+  ```bash
   go test ./internal/tests/integration/handlers/http -run TestCreateAccount -v
-
-### Observações finais
-- Código organizado para facilitar troca de adaptadores (ex.: trocar Postgres por outro DB ou adicionar cache).
+  ```
